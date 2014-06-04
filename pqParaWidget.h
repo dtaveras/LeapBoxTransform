@@ -50,8 +50,10 @@ class PQCOMPONENTS_EXPORT pqParaWidget : public pq3DWidget
 private:
   vtkLeapController* leapController;
   Frame prevFrame;
+  int ctrl;
 public slots:
   void newFrame(Frame frame);
+  void changeControl();
 public:
   pqParaWidget(vtkSMProxy* refProxy, vtkSMProxy* proxy, QWidget* p = 0);
   virtual ~pqParaWidget();

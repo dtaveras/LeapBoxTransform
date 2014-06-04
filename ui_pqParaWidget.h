@@ -46,7 +46,9 @@ public:
     pqLineEdit *scaleZ;
     QSpacerItem *spacerItem;
     QPushButton *resetBounds;
-
+    //New Widgets added
+    QPushButton *changeControl;
+    QLabel* leapLabel;
     void setupUi(QWidget *pqParaWidget)
     {
       qDebug() << "setupUI";
@@ -59,6 +61,15 @@ public:
         show3DWidget->setObjectName(QString::fromUtf8("show3DWidget"));
 
         gridLayout->addWidget(show3DWidget, 0, 0, 1, 2);
+
+	leapLabel = new QLabel(pqParaWidget);
+	leapLabel->setObjectName(QString::fromUtf8("leapLabel"));
+	leapLabel->setScaledContents(true);
+	leapLabel->setGeometry(QRect(10, 0, 10, 10));
+	leapLabel->setMaximumSize(QSize(30,30));
+        leapLabel->setPixmap(QPixmap(QString::fromUtf8("/Users/delvistaveras/Desktop/TransformWidget/handoff.png")));
+	
+	gridLayout->addWidget(leapLabel, 0, 1, 1, 2);
 
         gridLayout1 = new QGridLayout();
         gridLayout1->setObjectName(QString::fromUtf8("gridLayout1"));
@@ -129,7 +140,11 @@ public:
 
         spacerItem = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
 
-        gridLayout->addItem(spacerItem, 2, 0, 1, 1);
+        //gridLayout->addItem(spacerItem, 2, 0, 1, 1);
+	changeControl = new QPushButton(pqParaWidget);
+	changeControl->setObjectName(QString::fromUtf8("changeControl"));
+
+	gridLayout->addWidget(changeControl, 2, 0, 1, 1);
 
         resetBounds = new QPushButton(pqParaWidget);
         resetBounds->setObjectName(QString::fromUtf8("resetBounds"));
@@ -149,6 +164,8 @@ public:
         label_2->setText(QApplication::translate("pqParaWidget", "Rotate", 0, QApplication::UnicodeUTF8));
         label_3->setText(QApplication::translate("pqParaWidget", "Scale", 0, QApplication::UnicodeUTF8));
         resetBounds->setText(QApplication::translate("pqParaWidget", "Reset Bounds", 0, QApplication::UnicodeUTF8));
+	changeControl->setText(QApplication::translate("pqParaWidget", "Change Control", 0, QApplication::UnicodeUTF8));
+	//leapLabel->setText(QApplication::translate("pqParaWidget", "Label", 0, QApplication::UnicodeUTF8));
     } // retranslateUi
 
 };

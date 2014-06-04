@@ -54,6 +54,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //C++ Includes
 #include <cmath>
 
+#define SCALE 0.1
+
 class pqParaWidget::pqImplementation : public Ui::pqParaWidget
 {
 public:
@@ -70,6 +72,7 @@ pqParaWidget::pqParaWidget(vtkSMProxy* refProxy, vtkSMProxy* pxy, QWidget* _pare
   Superclass(refProxy, pxy, _parent)
 {
   qDebug() << "The Widget";
+  this->ctrl = 1;
   this->Implementation = new pqImplementation();
   this->Implementation->setupUi(this);
   this->Implementation->show3DWidget->setChecked(this->widgetVisible());  
@@ -105,6 +108,9 @@ pqParaWidget::pqParaWidget(vtkSMProxy* refProxy, vtkSMProxy* pxy, QWidget* _pare
   QObject::connect(this->Implementation->resetBounds,
     SIGNAL(clicked()), this, SLOT(resetBounds()));
 
+  QObject::connect(this->Implementation->changeControl,
+		   SIGNAL(clicked()), this, SLOT(changeControl()));
+
   //QObject::connect(this, SIGNAL(widgetStartInteraction()),
   //  this, SLOT(showHandles()));
 
@@ -120,6 +126,7 @@ pqParaWidget::pqParaWidget(vtkSMProxy* refProxy, vtkSMProxy* pxy, QWidget* _pare
 pqParaWidget::~pqParaWidget()
 {
   delete this->Implementation;
+  delete this->leapController;
 }
 
 #define PVBOXWIDGET_LINK(ui, smproperty, index)\
@@ -160,6 +167,13 @@ void pqParaWidget::createWidget(pqServer* server)
 }
 
 //-----------------------------------------------------------------------------
+// Switches from rotation to translation
+void pqParaWidget::changeControl(){
+  qDebug() << "Switch Control";
+  this->ctrl = ctrl ? 0 : 1;
+}
+
+//-----------------------------------------------------------------------------
 // Receive and React to the new incoming Frame
 void pqParaWidget::newFrame(Frame frame)
 {
@@ -171,12 +185,27 @@ void pqParaWidget::newFrame(Frame frame)
 
   Leap::Vector curPalmPos = frame.hands()[0].palmPosition();
   if(this->leapController->handInRange(curPalmPos)){
-    double y_cur = curPalmPos.y;
-    double y_prv = this->prevFrame.hands()[0].palmPosition().y;
-    double chngPos = y_cur - y_prv;
-    qDebug() << "chngPos: " << chngPos;
-    if(fabs(chngPos) < 10.0)
-      WidgetRep->Rotate(chngPos*2.0, 1.0,0.0,0.0);
+    this->Implementation->leapLabel->setPixmap(QPixmap(QString::fromUtf8("/Users/delvistaveras/Desktop/TransformWidget/handon.png")));
+    if(ctrl){
+      Leap::Vector curHandPos = curPalmPos;
+      Leap::Vector prevHandPos = this->prevFrame.hands()[0].palmPosition();
+      double p2[3], p1[3];
+      p2[0] = prevHandPos[0]*SCALE; p2[1] = prevHandPos[1]*SCALE; p2[2] = 0.0;
+      p1[0] = curHandPos[0]*SCALE; p1[1] = curHandPos[1]*SCALE; p1[2] = 0.0;
+      double diff = fabs(p1[1] - p2[1]);
+      qDebug() << diff;
+  
+      if(diff < 1.0)
+	WidgetRep->Translate(p2, p1);
+    }
+    else{
+      double y_cur = curPalmPos.y;
+      double y_prv = this->prevFrame.hands()[0].palmPosition().y;
+      double chngPos = y_cur - y_prv;
+      //qDebug() << "chngPos: " << chngPos;
+      if(fabs(chngPos) < 10.0)
+	WidgetRep->Rotate(chngPos*2.0, 1.0,0.0,0.0);
+    }
 
     this->prevFrame = frame;
     this->render();
@@ -184,7 +213,11 @@ void pqParaWidget::newFrame(Frame frame)
     widget->UpdatePropertyInformation();
     widget->UpdateVTKObjects();
   }
-  
+  else{
+    this->Implementation->leapLabel->setPixmap(QPixmap(QString::fromUtf8("/Users/delvistaveras/Desktop/TransformWidget/handoff.png")));
+    widget->UpdatePropertyInformation();
+    widget->UpdateVTKObjects();
+  }
 }
 
 //-----------------------------------------------------------------------------

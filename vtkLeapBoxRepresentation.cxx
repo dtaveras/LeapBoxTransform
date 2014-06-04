@@ -812,7 +812,6 @@ void vtkLeapBoxRepresentation::PlaceWidget(double bds[6])
 //----------------------------------------------------------------------------
 void vtkLeapBoxRepresentation::GetTransform(vtkTransform *t)
 {
-  qDebug() << "Representation Get Transform";
   double *pts =
     static_cast<vtkDoubleArray *>(this->Points->GetData())->GetPointer(0);
   double *p0 = pts;
