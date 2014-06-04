@@ -1,0 +1,247 @@
+<ServerManagerConfiguration>
+<!-- 3DWidget and all its necessary attributes are defined below -->
+  <ProxyGroup name="representations">
+    <NewWidgetRepresentationProxy name="theWidgetRepresentation" class="vtk3DWidgetRepresentation">
+      
+      <IntVectorProperty name="Enabled"
+			 command="SetEnabled"
+			 number_of_elements="1"
+			 default_values="1">
+	<BooleanDomain name="bool"/>
+	<Documentation>
+	  Enable/Disable Widget Interaction
+	</Documentation>
+      </IntVectorProperty>
+
+      <SubProxy>
+	<Proxy name="Prop" proxygroup="3d_widget_representations" proxyname="WidgetRepresentation">
+	</Proxy>
+	<ExposedProperties>
+	  <Property name="PlaceFactor" />
+          <Property name="PlaceWidget" />
+          <Property name="Visibility" />
+          <Property name="Position" />
+          <Property name="PositionInfo" />
+          <Property name="Rotation" />
+          <Property name="RotationInfo" />
+          <Property name="Scale" />
+          <Property name="ScaleInfo" />
+	</ExposedProperties>
+      </SubProxy>
+
+      <SubProxy>
+	<Proxy name="Widget" proxygroup="3d_widgets" proxyname="3d_Widget">
+	</Proxy>
+      </SubProxy>
+
+    </NewWidgetRepresentationProxy>
+  </ProxyGroup>
+
+
+  <ProxyGroup name="3d_widgets">
+    <Proxy name="3d_Widget" class="vtkLeapBoxWidget2" base_proxygroup="3d_widgets" base_proxyname="WidgetBase">
+    </Proxy>
+    <Documentation>Proxy for vtkBoxWidget2.</Documentation>
+  </ProxyGroup>
+
+  <ProxyGroup name="3d_widget_representations">
+    <LeapBoxRepresentationProxy class="vtkLeapBoxRepresentation"
+				name="WidgetRepresentation">
+      <Documentation>Proxy for vtkBoxRepresentation. Don't confuse this with
+      the vtkSMRepresentation proxy for the box widget (which is the
+      BoxWidgetRepresentation).</Documentation>
+      <IntVectorProperty animateable="1"
+                         command="SetVisibility"
+                         default_values="1"
+                         name="Visibility"
+                         number_of_elements="1">
+        <BooleanDomain name="bool" />
+      </IntVectorProperty>
+      <DoubleVectorProperty argument_is_array="1"
+                            command="PlaceWidget"
+                            default_values="none"
+                            name="PlaceWidget"
+                            number_of_elements="6">
+        <DoubleRangeDomain name="range" />
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetPlaceFactor"
+                            default_values="1.0"
+                            name="PlaceFactor"
+                            number_of_elements="1">
+        <DoubleRangeDomain min="0.01"
+                           name="range" />
+      </DoubleVectorProperty>
+
+      <SubProxy>
+        <Proxy name="Transform"
+               proxygroup="extended_sources"
+               proxyname="Transform2"></Proxy>
+        <ExposedProperties>
+          <Property name="Position" />
+          <Property name="PositionInfo" />
+          <Property name="Rotation" />
+          <Property name="RotationInfo" />
+          <Property name="Scale" />
+          <Property name="ScaleInfo" />
+        </ExposedProperties>
+      </SubProxy>
+
+      <!-- End of BoxRepresentation -->
+    </LeapBoxRepresentationProxy>
+  </ProxyGroup>
+
+<!-- Filter and all its necessary attributes are defined below -->
+  <ProxyGroup name="filters">
+    <SourceProxy name="TransformFilter" class="vtkNewTransformFilter" label="Transformer">
+      <Documentation long_help="This filter applies transformation to the polygons."
+                     short_help="Transform polygonal data.">The Transform
+                     filter allows you to specify the position, size, and
+                     orientation of polygonal, unstructured grid, and
+                     curvilinear data sets.</Documentation>
+
+      <InputProperty command="SetInputConnection"
+                     name="Input"
+                     panel_visibility="default">
+        <ProxyGroupDomain name="groups">
+          <Group name="sources" />
+          <Group name="filters" />
+        </ProxyGroupDomain>
+        <DataTypeDomain name="input_type">
+          <DataType value="vtkPointSet" />
+          <DataType value="vtkImageData" />
+          <DataType value="vtkRectilinearGrid" />
+        </DataTypeDomain>
+        <Documentation>This property specifies the input to the Transform
+        filter.</Documentation>
+      </InputProperty>
+
+      <ProxyProperty command="SetTransform"
+                     name="Transform"
+                     panel_visibility="default">
+        <ProxyGroupDomain name="groups">
+          <Group name="transforms" />
+        </ProxyGroupDomain>
+        <ProxyListDomain name="proxy_list">
+          <Proxy group="extended_sources"
+                 name="Transform3" />
+        </ProxyListDomain>
+        <Documentation>The values in this property allow you to specify the
+        transform (translation, rotation, and scaling) to apply to the input
+        dataset please.
+	</Documentation>
+      </ProxyProperty>
+
+    </SourceProxy>
+  </ProxyGroup>
+
+  <ProxyGroup name="extended_sources">
+    <Proxy class="vtkPVTransform"
+           name="Transform2">
+      <!--Transform proxy with unconventional interface, used by BoxWidget -->
+      <DoubleVectorProperty command="SetAbsolutePosition"
+                            default_values="0.0 1.0 0.0"
+                            information_property="PositionInfo"
+                            label="Translate"
+                            name="Position"
+                            number_of_elements="3">
+        <DoubleRangeDomain name="range" />
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="GetPosition"
+                            default_values="0.0 0.0 0.0"
+                            information_only="1"
+                            name="PositionInfo"
+                            number_of_elements="3">
+        <SimpleDoubleInformationHelper />
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetAbsoluteRotation"
+                            default_values="0.0 0.0 0.0"
+                            information_property="RotationInfo"
+                            label="Rotate"
+                            name="Rotation"
+                            number_of_elements="3">
+        <DoubleRangeDomain name="range" />
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="GetOrientation"
+                            default_values="0.0 0.0 0.0"
+                            information_only="1"
+                            name="RotationInfo"
+                            number_of_elements="3">
+        <SimpleDoubleInformationHelper />
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="SetAbsoluteScale"
+                            default_values="1.0 1.0 1.0"
+                            information_property="ScaleInfo"
+                            label="Scale"
+                            name="Scale"
+                            number_of_elements="3">
+        <DoubleRangeDomain name="range" />
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="GetScale"
+                            default_values="1.0 1.0 1.0"
+                            information_only="1"
+                            name="ScaleInfo"
+                            number_of_elements="3" />
+    </Proxy>
+
+    <Proxy class="vtkPVTransform"
+           label="Transform"
+           name="Transform3">
+      <DoubleVectorProperty command="SetAbsolutePosition"
+                            default_values="0.0 0.0 0.0"
+                            information_property="PositionInfo"
+                            label="Translating"
+                            name="Position"
+                            number_of_elements="3">
+        <DoubleRangeDomain name="range" />
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="GetAbsolutePosition"
+                            default_values="0.0 0.0 0.0"
+                            information_only="1"
+                            name="PositionInfo"
+                            number_of_elements="3" />
+      <DoubleVectorProperty command="SetAbsoluteRotation"
+                            default_values="0.0 0.0 0.0"
+                            information_property="RotationInfo"
+                            label="Rotate"
+                            name="Rotation"
+                            number_of_elements="3">
+        <DoubleRangeDomain name="range" />
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="GetAbsoluteRotation"
+                            default_values="0.0 0.0 0.0"
+                            information_only="1"
+                            name="RotationInfo"
+                            number_of_elements="3" />
+      <DoubleVectorProperty command="SetAbsoluteScale"
+                            default_values="1.0 1.0 1.0"
+                            information_property="ScaleInfo"
+                            label="Scale"
+                            name="Scale"
+                            number_of_elements="3">
+        <DoubleRangeDomain name="range" />
+      </DoubleVectorProperty>
+      <DoubleVectorProperty command="GetAbsoluteScale"
+                            default_values="1.0 1.0 1.0"
+                            information_only="1"
+                            name="ScaleInfo"
+                            number_of_elements="3" />
+      <Hints>
+        <PropertyGroup type="Boxing">
+          <Property function="Position"
+                    name="Position" />
+          <Property function="Rotation"
+                    name="Rotation" />
+          <Property function="Scale"
+                    name="Scale" />
+        </PropertyGroup>
+        <!--
+         <ProxyList>
+           <Link name="DummyInput" with_property="Input" />
+         </ProxyList>
+         -->
+      </Hints>
+
+    </Proxy>
+  </ProxyGroup>
+
+</ServerManagerConfiguration>
