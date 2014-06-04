@@ -1,6 +1,5 @@
 # LeapBoxTransform
 
-
 Paraview Leap Motion and vtkTransform Integregration
 -----------------
 More specificially this is a Paraview "Filter Plugin" which allows full control
