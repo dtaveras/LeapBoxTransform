@@ -185,7 +185,7 @@ void pqParaWidget::newFrame(Frame frame)
 
   Leap::Vector curPalmPos = frame.hands()[0].palmPosition();
   if(this->leapController->handInRange(curPalmPos)){
-    this->Implementation->leapLabel->setPixmap(QPixmap(QString::fromUtf8("/Users/delvistaveras/Desktop/TransformWidget/handon.png")));
+    //this->Implementation->leapLabel->setPixmap(QPixmap(QString::fromUtf8("/Users/delvistaveras/Desktop/TransformWidget/handon.png")));
     if(ctrl){
       Leap::Vector curHandPos = curPalmPos;
       Leap::Vector prevHandPos = this->prevFrame.hands()[0].palmPosition();
@@ -214,9 +214,9 @@ void pqParaWidget::newFrame(Frame frame)
     widget->UpdateVTKObjects();
   }
   else{
-    this->Implementation->leapLabel->setPixmap(QPixmap(QString::fromUtf8("/Users/delvistaveras/Desktop/TransformWidget/handoff.png")));
-    widget->UpdatePropertyInformation();
-    widget->UpdateVTKObjects();
+    //this->Implementation->leapLabel->setPixmap(QPixmap(QString::fromUtf8("/Users/delvistaveras/Desktop/TransformWidget/handoff.png")));
+    //widget->UpdatePropertyInformation();
+    //widget->UpdateVTKObjects();
   }
 }
 
