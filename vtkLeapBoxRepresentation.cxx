@@ -112,6 +112,7 @@ vtkLeapBoxRepresentation::vtkLeapBoxRepresentation()
   this->HexFace = vtkActor::New();
   this->HexFace->SetMapper(this->HexFaceMapper);
   this->HexFace->SetProperty(this->FaceProperty);
+  this->curFace = 5;
   cells->Delete();
 
   // Create the outline for the hex
@@ -199,6 +200,34 @@ void vtkLeapBoxRepresentation::updateLeapInfo(){
     TInfo1->SetInput("LEAP ON");
   else
     TInfo1->SetInput("LEAP OFF");
+}
+
+void vtkLeapBoxRepresentation::translateSelected(double* prv, double* pnt){
+
+  int faceEnum = curFace+1;
+  switch(faceEnum)
+    {
+    case vtkLeapBoxRepresentation::MoveF0:
+      MoveMinusXFace(prv,pnt);
+      break;
+    case vtkLeapBoxRepresentation::MoveF1:
+      MovePlusXFace(prv,pnt);
+      break;
+    case vtkLeapBoxRepresentation::MoveF2:
+      MoveMinusYFace(prv,pnt);
+      break;
+    case vtkLeapBoxRepresentation::MoveF3:
+      MovePlusYFace(prv,pnt);
+      break;
+    case vtkLeapBoxRepresentation::MoveF4:
+      MoveMinusZFace(prv,pnt);
+      break;
+    case vtkLeapBoxRepresentation::MoveF5:
+      MovePlusZFace(prv,pnt);
+      break;
+    default:
+      break;
+    }
 }
 
 void vtkLeapBoxRepresentation::Rotate(double angle, double x, double y, double z)
@@ -756,8 +785,8 @@ void vtkLeapBoxRepresentation::CreateDefaultProperties()
 
   // Face properties
   this->FaceProperty = vtkProperty::New();
-  this->FaceProperty->SetColor(0,1,0);
-  this->FaceProperty->SetOpacity(1.0);
+  this->FaceProperty->SetColor(0,0,1);
+  this->FaceProperty->SetOpacity(0.25);
 
   this->SelectedFaceProperty = vtkProperty::New();
   this->SelectedFaceProperty->SetColor(1,1,0);
@@ -1222,11 +1251,11 @@ int vtkLeapBoxRepresentation::HasTranslucentPolygonalGeometry()
   // If the face is not selected, we are not really rendering translucent faces,
   // hence don't bother taking it's opacity into consideration.
   // Look at BUG #7301.
-  if (this->HexFace->GetProperty() == this->SelectedFaceProperty)
+  /*if (this->HexFace->GetProperty() == this->SelectedFaceProperty)
     {
-    result |= this->HexFace->HasTranslucentPolygonalGeometry();
-    }
 
+    }*/
+  result |= this->HexFace->HasTranslucentPolygonalGeometry();
   // render the handles
   for (int j=0; j<7; j++)
     {
@@ -1353,6 +1382,8 @@ void vtkLeapBoxRepresentation::HighlightFace(int cellId)
 {
   if ( cellId >= 0 )
     {
+    curFace = cellId;
+    qDebug() << "CellIndex: " << curFace;
     vtkIdType npts;
     vtkIdType *pts;
     vtkCellArray *cells = this->HexFacePolyData->GetPolys();
@@ -1361,10 +1392,11 @@ void vtkLeapBoxRepresentation::HighlightFace(int cellId)
     cells->ReplaceCell(0,npts,pts);
     this->CurrentHexFace = cellId;
     this->HexFace->SetProperty(this->SelectedFaceProperty);
-    if ( !this->CurrentHandle )
+
+    /*if ( !this->CurrentHandle )
       {
       this->CurrentHandle = this->HexFace;
-      }
+      }*/
     }
   else
     {

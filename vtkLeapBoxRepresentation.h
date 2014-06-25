@@ -71,9 +71,10 @@ public:
   void SetBounds(double bnds[6]);
   
   void Rotate(double angle, double x, double y, double z);
+  void translateSelected(double* prv, double* pnt);
 private:
   int LeapInRange;
-
+  int curFace;
 public:
   // Description:
   // Instantiate the class.

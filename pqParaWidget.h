@@ -39,7 +39,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using namespace Leap;
 
 class pqServer;
-
+class pqView;
+class pqProxyWidget;
 /// Provides UI for Box Widget.
 class PQCOMPONENTS_EXPORT pqParaWidget : public pq3DWidget
 {
@@ -47,9 +48,13 @@ class PQCOMPONENTS_EXPORT pqParaWidget : public pq3DWidget
   typedef pq3DWidget Superclass;
 
 //Functions and Objects needed for Leap Motion Interaction
+public:
+  void nextFilter();
 private:
+  pqProxyWidget* pwidget;
   vtkLeapController* leapController;
   Frame prevFrame;
+  int tracking;
   int ctrl;
 public slots:
   void newFrame(Frame frame);
@@ -57,7 +62,6 @@ public slots:
 public:
   pqParaWidget(vtkSMProxy* refProxy, vtkSMProxy* proxy, QWidget* p = 0);
   virtual ~pqParaWidget();
-
   /// Resets the bounds of the 3D widget to the reference proxy bounds.
   /// This typically calls PlaceWidget on the underlying 3D Widget 
   /// with reference proxy bounds.

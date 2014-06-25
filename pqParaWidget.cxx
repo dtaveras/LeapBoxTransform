@@ -35,6 +35,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "vtkLeapBoxWidget2.h"
 #include "vtkLeapBoxRepresentation.h"
 
+#include "vtkCamera.h"
+#include "vtkRenderer.h"
+
 // Server Manager Includes.
 #include "vtkSMNewWidgetRepresentationProxy.h"
 #include "vtkSMPropertyHelper.h"
@@ -46,15 +49,81 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // ParaView Includes.
 #include "pq3DWidgetFactory.h"
 #include "pqApplicationCore.h"
+#include "pqPipelineSource.h"
+#include "pqServerManagerModel.h"
+#include "pqProxyWidget.h"
+#include "pqDisplayPolicy.h"
+#include "pqDataRepresentation.h"
+#include "pqPipelineFilter.h"
+#include "pqSettings.h"
+#include "pqProxyModifiedStateUndoElement.h"
+#include "pqView.h"
+#include "pqOutputPort.h"
 #include "pqPropertyLinks.h"
 #include "pqServer.h"
+#include "pqActiveObjects.h"
 #include "pqServerManagerModel.h"
 #include "pqSMAdaptor.h"
-
+#include "vtkSMSourceProxy.h"
+#include "vtkSMProperty.h"
+#include "vtkSMProxy.h"
+#include "vtkPVRenderView.h"
 //C++ Includes
 #include <cmath>
 
+#include <vtkPolyDataMapper.h>
+#include <vtkObjectFactory.h>
+#include <vtkActor.h>
+#include <vtkSmartPointer.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderer.h>
+#include <vtkRenderWindowInteractor.h>
+#include <vtkPolyData.h>
+#include <vtkSphereSource.h>
+#include <vtkInteractorStyleTrackballCamera.h>
+
 #define SCALE 0.1
+
+// Define interaction style
+class KeyPressInteractorStyle : public vtkInteractorStyleTrackballCamera
+{
+private:
+  pqParaWidget* widget;
+public:
+  //static KeyPressInteractorStyle* New();
+  vtkTypeMacro(KeyPressInteractorStyle, vtkInteractorStyleTrackballCamera);
+  KeyPressInteractorStyle(pqParaWidget* widget);
+  virtual void OnKeyPress() 
+  {
+    // Get the keypress
+    vtkRenderWindowInteractor *rwi = this->Interactor;
+    std::string key = rwi->GetKeySym();
+ 
+    // Output the key that was pressed
+    qDebug() << "Pressed " << key.c_str();
+ 
+    // Handle an arrow key
+    if(key == "Up")
+      {
+	qDebug() << "The up arrow was pressed.";
+      }
+ 
+    // Handle a "normal" key
+    if(key == "Return")
+      {
+	qDebug() << "The a key was pressed.";
+	widget->nextFilter();
+      }
+ 
+    // Forward events
+    vtkInteractorStyleTrackballCamera::OnKeyPress();
+  }
+ 
+};
+//vtkStandardNewMacro(KeyPressInteractorStyle);
+KeyPressInteractorStyle::KeyPressInteractorStyle(pqParaWidget* widget){
+  this->widget = widget;
+}
 
 class pqParaWidget::pqImplementation : public Ui::pqParaWidget
 {
@@ -72,7 +141,10 @@ pqParaWidget::pqParaWidget(vtkSMProxy* refProxy, vtkSMProxy* pxy, QWidget* _pare
   Superclass(refProxy, pxy, _parent)
 {
   qDebug() << "The Widget";
-  this->ctrl = 1;
+  this->pwidget = NULL;
+  this->ctrl = 0;
+  this->tracking = 0;
+
   this->Implementation = new pqImplementation();
   this->Implementation->setupUi(this);
   this->Implementation->show3DWidget->setChecked(this->widgetVisible());  
@@ -164,13 +236,88 @@ void pqParaWidget::createWidget(pqServer* server)
   //Initialize and Connect Leap Motion after all other things are Setup
   leapController = new vtkLeapController;
   QObject::connect(leapController, SIGNAL(gotFrame(Frame)), this, SLOT(newFrame(Frame)));
+
+  pqActiveObjects & objects = pqActiveObjects::instance();
+  
+  pqView* view = objects.activeView();
+  vtkSMProxy* tmpProxy = view->getProxy();
+  vtkPVRenderView* clientView = vtkPVRenderView::SafeDownCast(
+				 tmpProxy->GetClientSideObject());
+  //vtkCamera* clientCamera = clientView->GetActiveCamera();
+  vtkRenderWindowInteractor* renderWindowInteractor = (vtkRenderWindowInteractor*)clientView->GetInteractor();
+  KeyPressInteractorStyle* style = new KeyPressInteractorStyle(this);
+  renderWindowInteractor->SetInteractorStyle(style);
+  style->SetCurrentRenderer(clientView->GetRenderer());
+}
+
+void pqParaWidget::nextFilter(){
+  pqApplicationCore *core = pqApplicationCore::instance();
+  pqServerManagerModel *smModel = core->getServerManagerModel();
+  int numFilters = smModel->getNumberOfItems<pqPipelineFilter*>();
+  QList<pqPipelineFilter*> filters = smModel->findItems<pqPipelineFilter*>();
+  pqActiveObjects & objects = pqActiveObjects::instance();
+  pqPipelineSource* curActiveSource = objects.activeSource();
+  
+  int index = -1;
+  for(int i=0; i < numFilters; i++){
+    if((unsigned long long int)filters[i] == (unsigned long long int)curActiveSource){
+      qDebug() << "Found";
+      index = i;
+    }
+  }
+
+  if(index == -1)
+    return;
+  
+  if(index == numFilters-1)
+    index = 0;
+  else
+    index += 1;
+  
+  objects.setActiveSource(filters[index]);
+  return;
 }
 
 //-----------------------------------------------------------------------------
 // Switches from rotation to translation
 void pqParaWidget::changeControl(){
   qDebug() << "Switch Control";
-  this->ctrl = ctrl ? 0 : 1;
+  ctrl = ctrl > 1 ? 0 : ctrl+1;
+  qDebug() << "ctrl: " << ctrl;
+
+  /*pqApplicationCore *core = pqApplicationCore::instance();
+  pqServerManagerModel *smModel = core->getServerManagerModel();
+  QList<pqPipelineSource*> sources = smModel->findItems<pqPipelineSource*>();
+  QList<pqPipelineFilter*> filters = smModel->findItems<pqPipelineFilter*>();
+
+  int numSources = smModel->getNumberOfItems<pqPipelineSource*>();
+  int numFilters = smModel->getNumberOfItems<pqPipelineFilter*>();
+  qDebug() << "numFilters: " << numFilters;
+  qDebug() << "numSources: " << numSources;
+  pqPipelineSource* tmpSource = sources[0];
+  pqActiveObjects & objects = pqActiveObjects::instance();
+  
+  //objects.setActiveSource(tmpSource);
+  qDebug() << tmpSource->getOutputPort(0)->getDataClassName();
+
+  pqView* view = objects.activeView();
+  vtkSMProxy* tmpProxy = view->getProxy();
+  vtkPVRenderView* clientView = vtkPVRenderView::SafeDownCast(
+				 tmpProxy->GetClientSideObject());
+  vtkCamera* clientCamera = clientView->GetActiveCamera();
+  qDebug() << "Actor Count: " << clientView->GetNonCompositedRenderer()->VisibleActorCount();
+
+  double* clipRange = clientCamera->GetClippingRange();
+  vtkRenderWindowInteractor* renderWindowInteractor = (vtkRenderWindowInteractor*)clientView->GetInteractor();
+  KeyPressInteractorStyle* style = new KeyPressInteractorStyle(this);
+  renderWindowInteractor->SetInteractorStyle(style);
+  style->SetCurrentRenderer(clientView->GetRenderer());
+
+  view->render();*/
+}
+
+void printVector(Leap::Vector v){
+  qDebug() << "x: " << v.x << "y: " << v.y << "z: " << v.z;
 }
 
 //-----------------------------------------------------------------------------
@@ -178,27 +325,40 @@ void pqParaWidget::changeControl(){
 void pqParaWidget::newFrame(Frame frame)
 {
   //qDebug() << "new Frame Received";
+  //vtkLeapListener::printLeapInfo(frame);
   vtkSMNewWidgetRepresentationProxy* const widget = this->getWidgetProxy();
   vtkLeapBoxWidget2* absWidget = static_cast<vtkLeapBoxWidget2*>(widget->GetWidget());
   vtkLeapBoxRepresentation* WidgetRep = reinterpret_cast<vtkLeapBoxRepresentation*>(absWidget->GetWidgetRep());
   if(!WidgetRep) return;
-
-  Leap::Vector curPalmPos = frame.hands()[0].palmPosition();
-  if(this->leapController->handInRange(curPalmPos)){
-    //this->Implementation->leapLabel->setPixmap(QPixmap(QString::fromUtf8("/Users/delvistaveras/Desktop/TransformWidget/handon.png")));
-    if(ctrl){
-      Leap::Vector curHandPos = curPalmPos;
-      Leap::Vector prevHandPos = this->prevFrame.hands()[0].palmPosition();
-      double p2[3], p1[3];
-      p2[0] = prevHandPos[0]*SCALE; p2[1] = prevHandPos[1]*SCALE; p2[2] = 0.0;
-      p1[0] = curHandPos[0]*SCALE; p1[1] = curHandPos[1]*SCALE; p1[2] = 0.0;
-      double diff = fabs(p1[1] - p2[1]);
-      qDebug() << diff;
-  
-      if(diff < 1.0)
-	WidgetRep->Translate(p2, p1);
+  Leap::Vector curPalmPos = frame.hands().rightmost().palmPosition();
+  int numFingers = frame.hands().rightmost().fingers().count();
+  bool handRange = leapController->handInRange(curPalmPos);
+  if((numFingers > 0 && handRange) || (ctrl == 2 && handRange) ){
+    if(!tracking){
+      this->Implementation->leapLabel->setPixmap(QPixmap(QString::fromUtf8("/Users/delvistaveras/Desktop/TransformWidget/handon.png")));
+      this->tracking = 1;
     }
-    else{
+
+    Leap::Vector curHandPos = curPalmPos;
+    Leap::Vector prevHandPos = this->prevFrame.hands().rightmost().palmPosition();
+
+    if(ctrl == 0){
+      double p2[3], p1[3];
+      p2[0] = prevHandPos[0]*SCALE; p2[1] = prevHandPos[1]*SCALE; p2[2] = prevHandPos[2]*SCALE;
+      p1[0] = curHandPos[0]*SCALE;  p1[1] = curHandPos[1]*SCALE;  p1[2] = curHandPos[2]*SCALE;
+      double xdiff = fabs(p1[0] - p2[0]);
+      double ydiff = fabs(p1[1] - p2[1]);
+      double zdiff = fabs(p1[2] - p2[2]);
+
+      //qDebug() << "x: " << p2[0] << "y: " << p2[1] << "z: " << p2[2];
+      //qDebug() << "x: " << p1[0] << "y: " << p1[1] << "z: " << p1[2];
+      //qDebug() << diff;
+      
+      if(xdiff < 2.0 && ydiff < 2.0 && zdiff < 2.0){
+	WidgetRep->Translate(p2, p1);
+      }
+    }
+    else if(ctrl == 1){
       double y_cur = curPalmPos.y;
       double y_prv = this->prevFrame.hands()[0].palmPosition().y;
       double chngPos = y_cur - y_prv;
@@ -206,17 +366,53 @@ void pqParaWidget::newFrame(Frame frame)
       if(fabs(chngPos) < 10.0)
 	WidgetRep->Rotate(chngPos*2.0, 1.0,0.0,0.0);
     }
+    else if(ctrl == 2) {
+      Leap::Hand trackingHand = frame.hands().rightmost();
+      Leap::Vector palmNormal = trackingHand.palmNormal();
+      //printVector(palmNormal);
+      float yaw = trackingHand.palmNormal().yaw();
+      float pitch = trackingHand.palmNormal().pitch();
+      float roll = trackingHand.palmNormal().roll();
+      /*qDebug() << "yaw: " << yaw;
+	qDebug() << "pitch: " << pitch;
+	qDebug() << "roll: " << roll;*/
+      if(fabs(palmNormal.x) > .85){//Used to check if palm is facing +-x axis
+	qDebug() << "Hand Perpendicular";
+	Leap::Hand prvTrackingHand = this->prevFrame.hands().rightmost();
+	double prv[3];
+	double pnt[3];
+	pnt[0] = trackingHand.palmPosition().x*SCALE; pnt[1] = trackingHand.palmPosition().y*SCALE;
+	pnt[2] = trackingHand.palmPosition().z*SCALE;
+
+	prv[0] = prvTrackingHand.palmPosition().x*SCALE; prv[1] = prvTrackingHand.palmPosition().y*SCALE;
+	prv[2] = prvTrackingHand.palmPosition().z*SCALE;
+	float xdiff = fabs(pnt[0]-prv[0]);
+	float ydiff = fabs(pnt[1]-prv[1]);
+	float zdiff = fabs(pnt[2]-prv[2]);
+
+	qDebug() << "Xdiff:" << fabs(pnt[0]-prv[0]);
+	qDebug() << "Ydiff:" << fabs(pnt[1]-prv[1]);
+	qDebug() << "Zdiff:" << fabs(pnt[2]-prv[2]);
+    
+	if(xdiff < 2.0 && ydiff < 2.0 && zdiff < 2.0){
+	  WidgetRep->translateSelected(prv, pnt);
+	}
+      }
+    }
 
     this->prevFrame = frame;
     this->render();
     this->setModified();
     widget->UpdatePropertyInformation();
-    widget->UpdateVTKObjects();
+    //widget->UpdateVTKObjects();
   }
   else{
-    //this->Implementation->leapLabel->setPixmap(QPixmap(QString::fromUtf8("/Users/delvistaveras/Desktop/TransformWidget/handoff.png")));
-    //widget->UpdatePropertyInformation();
-    //widget->UpdateVTKObjects();
+    if(tracking){
+      this->Implementation->leapLabel->setPixmap(QPixmap(QString::fromUtf8("/Users/delvistaveras/Desktop/TransformWidget/handoff.png")));
+      widget->UpdatePropertyInformation();
+      //widget->UpdateVTKObjects();
+      tracking = 0;
+    }
   }
 }
 
